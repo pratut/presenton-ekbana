@@ -9,8 +9,8 @@ const SettingSideBar = ({ mode, setMode, selectedProvider, setSelectedProvider }
                     <button className='px-3  py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
                         onClick={() => setMode('presenton')}
                         style={{
-                            background: mode === 'presenton' ? '#F4F3FF' : 'transparent',
-                            color: mode === 'presenton' ? '#5146E5' : '#3A3A3A'
+                            background: mode === 'presenton' ? '#F0FDF4' : 'transparent',
+                            color: mode === 'presenton' ? 'hsl(var(--ekbana-green))' : '#3A3A3A'
                         }}
                     >Presenton</button>
                     <svg xmlns="http://www.w3.org/2000/svg" className='mx-1' width="2" height="17" viewBox="0 0 2 17" fill="none">
@@ -26,7 +26,7 @@ const SettingSideBar = ({ mode, setMode, selectedProvider, setSelectedProvider }
                         >
                             Nanobanana
                         </button>
-                        <span className='absolute -top-2 -right-5 text-[7px] uppercase tracking-wide bg-[#F4F3FF] text-[#5146E5] border border-[#D9D6FE] rounded-full px-1.5 py-0.5 whitespace-nowrap'>
+                        <span className='absolute -top-2 -right-5 text-[7px] uppercase tracking-wide bg-[#F0FDF4] text-ekbana-green border border-[#D9D6FE] rounded-full px-1.5 py-0.5 whitespace-nowrap'>
                             Coming soon
                         </span>
                     </div>

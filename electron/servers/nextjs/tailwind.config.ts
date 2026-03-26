@@ -53,6 +53,12 @@ const config: Config = {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
+        // EKbana Brand Colors
+        ekbana: {
+          green: "hsl(var(--ekbana-green))",
+          blue: "hsl(var(--ekbana-blue))",
+          skyBlue: "hsl(var(--ekbana-sky-blue))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

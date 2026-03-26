@@ -31,9 +31,9 @@ const unbounded = Unbounded({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://presenton.ai"),
-  title: "Presenton - Open Source AI presentation generator",
+  title: "EKbana - AI Presentation Generator",
   description:
-    "Open-source AI presentation generator with custom layouts, multi-model support (OpenAI, Gemini, Ollama), and PDF/PPTX export. A free Gamma alternative.",
+    "AI-powered presentation generator with custom layouts, multi-model support, and professional design. Create stunning presentations in minutes.",
   keywords: [
     "AI presentation generator",
     "data storytelling",
@@ -44,18 +44,22 @@ export const metadata: Metadata = {
     "interactive presentations",
     "professional slides",
   ],
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-icon.png',
+  },
   openGraph: {
-    title: "Presenton - Open Source AI presentation generator",
+    title: "EKbana - AI Presentation Generator",
     description:
-      "Open-source AI presentation generator with custom layouts, multi-model support (OpenAI, Gemini, Ollama), and PDF/PPTX export. A free Gamma alternative.",
+      "AI-powered presentation generator with custom layouts, multi-model support, and professional design. Create stunning presentations in minutes.",
     url: "https://presenton.ai",
-    siteName: "Presenton",
+    siteName: "EKbana",
     images: [
       {
         url: "https://presenton.ai/presenton-feature-graphics.png",
         width: 1200,
         height: 630,
-        alt: "Presenton Logo",
+        alt: "EKbana Logo",
       },
     ],
     type: "website",
@@ -66,9 +70,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Presenton - Open Source AI presentation generator",
+    title: "EKbana - AI Presentation Generator",
     description:
-      "Open-source AI presentation generator with custom layouts, multi-model support (OpenAI, Gemini, Ollama), and PDF/PPTX export. A free Gamma alternative.",
+      "AI-powered presentation generator with custom layouts, multi-model support, and professional design. Create stunning presentations in minutes.",
     images: ["https://presenton.ai/presenton-feature-graphics.png"],
   },
 };

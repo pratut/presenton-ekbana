@@ -234,7 +234,7 @@ const LayoutPreview = () => {
                         onClick={() => setTab('custom')}
                         style={{
                             background: tab === 'custom' ? '#F4F3FF' : 'transparent',
-                            color: tab === 'custom' ? '#5146E5' : '#3A3A3A'
+                            color: tab === 'custom' ? 'hsl(var(--ekbana-green))' : '#3A3A3A'
                         }}
                     >Custom</button>
                     <svg xmlns="http://www.w3.org/2000/svg" className='mx-1' width="2" height="17" viewBox="0 0 2 17" fill="none">
@@ -244,7 +244,7 @@ const LayoutPreview = () => {
                         onClick={() => setTab('default')}
                         style={{
                             background: tab === 'default' ? '#F4F3FF' : 'transparent',
-                            color: tab === 'default' ? '#5146E5' : '#3A3A3A'
+                            color: tab === 'default' ? 'hsl(var(--ekbana-blue))' : '#3A3A3A'
                         }}
                     >Built-in</button>
                 </div>

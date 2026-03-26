@@ -25,7 +25,7 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 
 # Install ollama
-RUN curl -fsSL https://ollama.com/install.sh | sh
+# RUN curl -fsSL https://ollama.com/install.sh | sh
 
 # Install dependencies for FastAPI
 RUN pip install alembic aiohttp aiomysql aiosqlite asyncpg fastapi[standard] \

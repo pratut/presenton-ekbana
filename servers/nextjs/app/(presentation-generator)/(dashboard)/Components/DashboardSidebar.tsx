@@ -38,7 +38,7 @@ const DashboardSidebar = () => {
             <div>
 
                 <div onClick={() => router.push("/dashboard")} className="flex items-center  pb-6 border-b border-slate-200/60   gap-2    ">
-                    <div className="bg-[#7C51F8] rounded-full cursor-pointer p-1 flex justify-center items-center mx-auto">
+                    <div className="bg-gradient-to-br from-ekbana-sky-blue to-ekbana-blue rounded-full cursor-pointer p-1 flex justify-center items-center mx-auto shadow-lg shadow-ekbana-green/20">
                         <img src="/logo-with-bg.png" alt="Presenton logo" className="h-[40px] object-contain w-full" />
                     </div>
                 </div>
@@ -56,7 +56,7 @@ const DashboardSidebar = () => {
                             aria-label="Dashboard"
                             title="Dashboard"
                         >
-                            <LayoutDashboard className={["h-4 w-4", pathname === "/dashboard" ? "text-[#5146E5]" : "text-slate-600"].join(" ")} />
+                            <LayoutDashboard className={["h-4 w-4", pathname === "/dashboard" ? "text-ekbana-green" : "text-slate-600"].join(" ")} />
                             <span className="text-[11px] text-slate-800">Dashboard</span>
                         </Link>
                         <Link
@@ -70,7 +70,7 @@ const DashboardSidebar = () => {
                             title="Templates"
                         >
                             <div className="flex flex-col cursor-pointer tex-center items-center gap-2  transition-colors">
-                                <Star className={`h-4 w-4 ${pathname === "/templates" ? "text-[#5146E5]" : "text-slate-600"}`} />
+                                <Star className={`h-4 w-4 ${pathname === "/templates" ? "text-ekbana-blue" : "text-slate-600"}`} />
                                 <span className="text-[11px] text-slate-800">Templates</span>
                             </div>
                         </Link>
@@ -85,7 +85,7 @@ const DashboardSidebar = () => {
                             title="Theme"
                         >
                             <div className="flex flex-col cursor-pointer tex-center items-center gap-2  transition-colors">
-                                <Palette className={`h-4 w-4 ${pathname === "/theme" ? "text-[#5146E5]" : "text-slate-600"}`} />
+                                <Palette className={`h-4 w-4 ${pathname === "/theme" ? "text-ekbana-sky-blue" : "text-slate-600"}`} />
                                 <span className="text-[11px] text-slate-800">Themes</span>
                             </div>
                         </Link>
@@ -109,7 +109,7 @@ const DashboardSidebar = () => {
                             aria-label={itemLabel}
                             title={itemLabel}
                         >
-                            <Icon className={["h-4 w-4", isActive ? "text-[#5146E5]" : "text-slate-600"].join(" ")} />
+                            <Icon className={["h-4 w-4", isActive ? "text-ekbana-green" : "text-slate-600"].join(" ")} />
                             <span className="text-[11px] text-slate-800">{itemLabel}</span>
                         </Link>
                     );
