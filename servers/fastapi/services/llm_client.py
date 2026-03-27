@@ -71,6 +71,7 @@ from utils.schema_utils import (
     flatten_json_schema,
     remove_titles_from_schema,
 )
+from utils.usage_cost import get_usage_collector
 
 
 
@@ -79,6 +80,84 @@ class LLMClient:
         self.llm_provider = get_llm_provider()
         self._client = self._get_client()
         self.tool_calls_handler = LLMToolCallsHandler(self)
+
+    def _record_usage(
+        self,
+        provider: str,
+        model: str,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        total_tokens: Optional[int] = None,
+        raw_usage: Optional[dict] = None,
+    ):
+        usage_collector = get_usage_collector()
+        if not usage_collector:
+            return
+        usage_collector.add_llm_usage(
+            provider=provider,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+            metadata=raw_usage,
+        )
+
+    def _record_openai_usage(self, model: str, usage: Any):
+        if not usage:
+            return
+        self._record_usage(
+            provider="openai",
+            model=model,
+            input_tokens=getattr(usage, "prompt_tokens", 0) or 0,
+            output_tokens=getattr(usage, "completion_tokens", 0) or 0,
+            total_tokens=getattr(usage, "total_tokens", None),
+            raw_usage=usage.model_dump() if hasattr(usage, "model_dump") else None,
+        )
+
+    def _record_google_usage(self, model: str, usage_metadata: Any):
+        if not usage_metadata:
+            return
+        metadata = (
+            usage_metadata.model_dump()
+            if hasattr(usage_metadata, "model_dump")
+            else (
+                dict(usage_metadata)
+                if isinstance(usage_metadata, dict)
+                else {"raw_usage": str(usage_metadata)}
+            )
+        )
+        prompt_tokens = int(metadata.get("prompt_token_count") or 0)
+        output_tokens = int(
+            metadata.get("candidates_token_count")
+            or metadata.get("response_token_count")
+            or 0
+        )
+        total_tokens = int(metadata.get("total_token_count") or 0) or None
+        self._record_usage(
+            provider="google",
+            model=model,
+            input_tokens=prompt_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+            raw_usage=metadata,
+        )
+
+    def _record_anthropic_usage(self, model: str, usage: Any):
+        if not usage:
+            return
+        metadata = (
+            usage.model_dump()
+            if hasattr(usage, "model_dump")
+            else {"raw_usage": str(usage)}
+        )
+        self._record_usage(
+            provider="anthropic",
+            model=model,
+            input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
+            output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
+            total_tokens=None,
+            raw_usage=metadata,
+        )
 
     # ? Use tool calls
     def use_tool_calls_for_structured_output(self) -> bool:
@@ -286,6 +365,7 @@ class LLMClient:
             tools=tools,
             extra_body=extra_body,
         )
+        self._record_openai_usage(model=model, usage=response.usage)
 
         if len(response.choices) == 0:
             return None
@@ -352,6 +432,9 @@ class LLMClient:
                 max_output_tokens=max_tokens,
             ),
         )
+        self._record_google_usage(
+            model=model, usage_metadata=getattr(response, "usage_metadata", None)
+        )
 
         content = response.candidates[0].content
         response_parts = content.parts
@@ -415,6 +498,7 @@ class LLMClient:
             tools=tools,
             max_tokens=max_tokens or 4000,
         )
+        self._record_anthropic_usage(model=model, usage=getattr(response, "usage", None))
         text_content = None
         tool_calls: List[AnthropicToolCall] = []
         for content in response.content:
@@ -589,6 +673,18 @@ class LLMClient:
             elif event_type in ("response.error", "response.failed", "error"):
                 err = event.get("message") or event.get("error") or str(event)
                 raise HTTPException(status_code=502, detail=f"Codex error: {err}"[:400])
+            elif event_type == "response.completed":
+                response_obj = event.get("response") or {}
+                usage = response_obj.get("usage") if isinstance(response_obj, dict) else None
+                if isinstance(usage, dict):
+                    self._record_usage(
+                        provider="codex",
+                        model=model,
+                        input_tokens=int(usage.get("input_tokens") or 0),
+                        output_tokens=int(usage.get("output_tokens") or 0),
+                        total_tokens=int(usage.get("total_tokens") or 0) or None,
+                        raw_usage=usage,
+                    )
 
         if tool_calls_by_id and responses_tools and depth < _MAX_RECURSION_DEPTH:
             parsed_tool_calls = [
@@ -740,6 +836,7 @@ class LLMClient:
             tools=all_tools,
             extra_body=extra_body,
         )
+        self._record_openai_usage(model=model, usage=response.usage)
 
         if len(response.choices) == 0:
             return None
@@ -888,6 +985,9 @@ class LLMClient:
                 max_output_tokens=max_tokens,
             ),
         )
+        self._record_google_usage(
+            model=model, usage_metadata=getattr(response, "usage_metadata", None)
+        )
 
         content = response.candidates[0].content
         response_parts = content.parts
@@ -966,6 +1066,7 @@ class LLMClient:
                 *(tools or []),
             ],
         )
+        self._record_anthropic_usage(model=model, usage=getattr(response, "usage", None))
         tool_calls: List[AnthropicToolCall] = []
         for content in response.content:
             if content.type == "tool_use":
@@ -1139,9 +1240,12 @@ class LLMClient:
             max_completion_tokens=max_tokens,
             tools=tools,
             extra_body=extra_body,
+            stream_options={"include_usage": True},
             stream=True,
         ):
             event: OpenAIChatCompletionChunk = event
+            if getattr(event, "usage", None):
+                self._record_openai_usage(model=model, usage=event.usage)
             if not event.choices:
                 continue
 
@@ -1229,6 +1333,7 @@ class LLMClient:
             google_tools = [GoogleTool(function_declarations=[tool]) for tool in tools]
 
         generated_contents = []
+        final_stream_event = None
         tool_calls: List[GoogleToolCall] = []
         async for event in iterator_to_async(client.models.generate_content_stream)(
             model=model,
@@ -1240,6 +1345,7 @@ class LLMClient:
                 max_output_tokens=max_tokens,
             ),
         ):
+            final_stream_event = event
             if not (
                 event.candidates
                 and event.candidates[0].content
@@ -1261,6 +1367,15 @@ class LLMClient:
                             arguments=each_part.function_call.args,
                         )
                     )
+        # Google usage metadata is available on the final stream event object.
+        self._record_google_usage(
+            model=model,
+            usage_metadata=(
+                getattr(final_stream_event, "usage_metadata", None)
+                if final_stream_event is not None
+                else None
+            ),
+        )
 
         if tool_calls:
             tool_call_messages = await self.tool_calls_handler.handle_tool_calls_google(
@@ -1325,6 +1440,10 @@ class LLMClient:
                             input=event.content_block.input,
                         )
                     )
+            final_message = await stream.get_final_message()
+            self._record_anthropic_usage(
+                model=model, usage=getattr(final_message, "usage", None)
+            )
 
         if tool_calls:
             tool_call_messages = (
@@ -1467,6 +1586,18 @@ class LLMClient:
             elif event_type in ("response.error", "response.failed", "error"):
                 err = event.get("message") or event.get("error") or str(event)
                 raise HTTPException(status_code=502, detail=f"Codex stream error: {err}"[:400])
+            elif event_type == "response.completed":
+                response_obj = event.get("response") or {}
+                usage = response_obj.get("usage") if isinstance(response_obj, dict) else None
+                if isinstance(usage, dict):
+                    self._record_usage(
+                        provider="codex",
+                        model=model,
+                        input_tokens=int(usage.get("input_tokens") or 0),
+                        output_tokens=int(usage.get("output_tokens") or 0),
+                        total_tokens=int(usage.get("total_tokens") or 0) or None,
+                        raw_usage=usage,
+                    )
 
         if tool_calls_by_id and responses_tools and depth < _MAX_RECURSION_DEPTH:
             parsed_tool_calls = [
@@ -1645,9 +1776,12 @@ class LLMClient:
                 else None
             ),
             extra_body=extra_body,
+            stream_options={"include_usage": True},
             stream=True,
         ):
             event: OpenAIChatCompletionChunk = event
+            if getattr(event, "usage", None):
+                self._record_openai_usage(model=model, usage=event.usage)
             if not event.choices:
                 continue
 
@@ -2032,6 +2166,7 @@ class LLMClient:
         parsed_messages = self._get_google_messages(messages)
 
         generated_contents = []
+        final_stream_event = None
         tool_calls: List[GoogleToolCall] = []
         has_response_schema_tool_call = False
         async for event in iterator_to_async(client.models.generate_content_stream)(
@@ -2054,6 +2189,7 @@ class LLMClient:
                 max_output_tokens=max_tokens,
             ),
         ):
+            final_stream_event = event
             if not (
                 event.candidates
                 and event.candidates[0].content
@@ -2080,6 +2216,15 @@ class LLMClient:
                             arguments=each_part.function_call.args,
                         )
                     )
+
+        self._record_google_usage(
+            model=model,
+            usage_metadata=(
+                getattr(final_stream_event, "usage_metadata", None)
+                if final_stream_event is not None
+                else None
+            ),
+        )
 
         if tool_calls and not has_response_schema_tool_call:
             tool_call_messages = await self.tool_calls_handler.handle_tool_calls_google(
@@ -2167,6 +2312,10 @@ class LLMClient:
                             input=event.content_block.input,
                         )
                     )
+            final_message = await stream.get_final_message()
+            self._record_anthropic_usage(
+                model=model, usage=getattr(final_message, "usage", None)
+            )
 
         if tool_calls and not has_response_schema_tool_call:
             tool_call_messages = (

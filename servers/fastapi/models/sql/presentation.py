@@ -7,6 +7,7 @@ from sqlmodel import Boolean, Field, SQLModel
 from models.presentation_layout import PresentationLayoutModel
 from models.presentation_outline_model import PresentationOutlineModel
 from models.presentation_structure_model import PresentationStructureModel
+from models.usage_cost import UsageCostSummary
 from utils.datetime_utils import get_current_utc_datetime
 
 
@@ -36,6 +37,7 @@ class PresentationModel(SQLModel, table=True):
     layout: Optional[dict] = Field(sa_column=Column(JSON), default=None)
     structure: Optional[dict] = Field(sa_column=Column(JSON), default=None)
     theme: Optional[dict] = Field(sa_column=Column(JSON), default=None)
+    usage_cost: Optional[dict] = Field(sa_column=Column(JSON), default=None)
     instructions: Optional[str] = Field(sa_column=Column(String), default=None)
     tone: Optional[str] = Field(sa_column=Column(String), default=None)
     verbosity: Optional[str] = Field(sa_column=Column(String), default=None)
@@ -55,6 +57,7 @@ class PresentationModel(SQLModel, table=True):
             layout=self.layout,
             structure=self.structure,
             theme=self.theme,
+            usage_cost=self.usage_cost,
             instructions=self.instructions,
             tone=self.tone,
             verbosity=self.verbosity,
@@ -80,3 +83,8 @@ class PresentationModel(SQLModel, table=True):
 
     def set_structure(self, structure: PresentationStructureModel):
         self.structure = structure.model_dump()
+
+    def get_usage_cost(self):
+        if not self.usage_cost:
+            return None
+        return UsageCostSummary(**self.usage_cost)

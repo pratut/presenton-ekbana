@@ -17,6 +17,16 @@ export interface PresentationResponse {
   titles: string[];
   user_id: string;
   vector_store: any;
+  usage_cost?: {
+    currency: string;
+    total_amount: number;
+    llm_amount: number;
+    image_amount: number;
+    total_input_tokens: number;
+    total_output_tokens: number;
+    total_tokens: number;
+    total_images_generated: number;
+  } | null;
 
   thumbnail: string;
   slides: any[];

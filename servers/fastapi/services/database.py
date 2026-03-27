@@ -73,6 +73,10 @@ async def create_db_and_tables():
             column_names = {row[1] for row in result.fetchall()}
             if "theme" not in column_names:
                 await conn.execute(text("ALTER TABLE presentations ADD COLUMN theme JSON"))
+            if "usage_cost" not in column_names:
+                await conn.execute(
+                    text("ALTER TABLE presentations ADD COLUMN usage_cost JSON")
+                )
 
     async with container_db_engine.begin() as conn:
         await conn.run_sync(

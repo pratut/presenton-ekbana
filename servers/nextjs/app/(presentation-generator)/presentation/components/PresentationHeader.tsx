@@ -11,7 +11,7 @@ import {
   ArrowUpRight,
 
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Popover,
@@ -60,6 +60,41 @@ const PresentationHeader = ({
   const { presentationData, isStreaming } = useSelector(
     (state: RootState) => state.presentationGeneration
   );
+  const usageCost = presentationData?.usage_cost;
+  const formatUsd = (amount: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 6,
+    }).format(amount || 0);
+  const slideUsageSummary = useMemo(() => {
+    if (!usageCost?.items?.length) return [];
+    const bySlide = new Map<
+      number,
+      {
+        slideIndex: number;
+        amount: number;
+        tokens: number;
+        images: number;
+      }
+    >();
+    for (const item of usageCost.items) {
+      const slideIndex = item?.metadata?.slide_index;
+      if (typeof slideIndex !== "number" || slideIndex < 0) continue;
+      const current = bySlide.get(slideIndex) || {
+        slideIndex,
+        amount: 0,
+        tokens: 0,
+        images: 0,
+      };
+      current.amount += item.amount || 0;
+      current.tokens += item.total_tokens || 0;
+      current.images += item.images_generated || 0;
+      bySlide.set(slideIndex, current);
+    }
+    return Array.from(bySlide.values()).sort((a, b) => a.slideIndex - b.slideIndex);
+  }, [usageCost]);
 
   useEffect(() => {
     const load = async () => {
@@ -244,7 +279,35 @@ const PresentationHeader = ({
   return (
     <>
       <div className="py-7 sticky top-0 bg-white z-50 mb-[17px]  font-syne flex justify-between items-center">
-        <h2 className="text-lg text-[#101323] font-unbounded "><MarkdownRenderer content={presentationData?.title || "Presentation"} className="mb-0  w-[600px] truncate text-sm text-[#101323] " /></h2>
+        <div className="flex flex-col">
+          <h2 className="text-lg text-[#101323] font-unbounded "><MarkdownRenderer content={presentationData?.title || "Presentation"} className="mb-0  w-[600px] truncate text-sm text-[#101323] " /></h2>
+          {usageCost && (
+            <div className="mt-1">
+              <p className="text-xs text-[#5D6474]">
+                Cost: {formatUsd(usageCost.total_amount)} (LLM {formatUsd(usageCost.llm_amount)}
+                , Images {formatUsd(usageCost.image_amount)})
+              </p>
+              <p className="text-xs text-[#5D6474]">
+                Tokens: {usageCost.total_tokens?.toLocaleString() || 0} (input{" "}
+                {usageCost.total_input_tokens?.toLocaleString() || 0}, output{" "}
+                {usageCost.total_output_tokens?.toLocaleString() || 0})
+              </p>
+              {slideUsageSummary.length > 0 && (
+                <div className="max-h-16 overflow-y-auto mt-1">
+                  <p className="text-[11px] text-[#5D6474]">
+                    Per slide:{" "}
+                    {slideUsageSummary
+                      .map(
+                        (item) =>
+                          `S${item.slideIndex + 1} ${formatUsd(item.amount)} / ${item.tokens.toLocaleString()}t`
+                      )
+                      .join(" | ")}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2.5">
 
           {isPresentationSaving && <div className="flex items-center gap-2">

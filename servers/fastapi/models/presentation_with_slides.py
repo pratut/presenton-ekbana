@@ -5,6 +5,7 @@ import uuid
 from pydantic import BaseModel
 
 from models.sql.slide import SlideModel
+from models.usage_cost import UsageCostSummary
 
 
 class PresentationWithSlides(BaseModel):
@@ -18,4 +19,5 @@ class PresentationWithSlides(BaseModel):
     tone: Optional[str] = None
     verbosity: Optional[str] = None
     theme: Optional[dict] = None
+    usage_cost: Optional[UsageCostSummary] = None
     slides: List[SlideModel]

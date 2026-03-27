@@ -8,6 +8,7 @@ from google import genai
 from openai import NOT_GIVEN, AsyncOpenAI
 from models.image_prompt import ImagePrompt
 from models.sql.image_asset import ImageAsset
+from utils.usage_cost import get_usage_collector
 from utils.get_env import (
     get_dall_e_3_quality_env,
     get_gpt_image_1_5_quality_env,
@@ -34,6 +35,39 @@ class ImageGenerationService:
         self.output_directory = output_directory
         self.is_image_generation_disabled = is_image_generation_disabled()
         self.image_gen_func = self.get_image_gen_func()
+        self.usage_provider, self.usage_model = self.get_usage_source()
+
+    def get_usage_source(self) -> tuple[str, str]:
+        if self.is_image_generation_disabled:
+            return ("disabled", "disabled")
+        if is_pixabay_selected():
+            return ("pixabay", "pixabay")
+        if is_pixels_selected():
+            return ("pexels", "pexels")
+        if is_gemini_flash_selected():
+            return ("google", "gemini-2.5-flash-image-preview")
+        if is_nanobanana_pro_selected():
+            return ("google", "gemini-3-pro-image-preview")
+        if is_dalle3_selected():
+            return ("openai", "dall-e-3")
+        if is_gpt_image_1_5_selected():
+            return ("openai", "gpt-image-1.5")
+        if is_comfyui_selected():
+            return ("comfyui", "comfyui")
+        return ("unknown", "unknown")
+
+    def _record_image_usage(
+        self, provider: str, model: str, images_generated: int, raw_usage: dict | None = None
+    ):
+        usage_collector = get_usage_collector()
+        if not usage_collector:
+            return
+        usage_collector.add_image_usage(
+            provider=provider,
+            model=model,
+            images_generated=images_generated,
+            metadata=raw_usage,
+        )
 
     def get_image_gen_func(self):
         if self.is_image_generation_disabled:
@@ -116,6 +150,16 @@ class ImageGenerationService:
             response_format="b64_json" if model == "dall-e-3" else NOT_GIVEN,
             size="1024x1024",
         )
+        self._record_image_usage(
+            provider="openai",
+            model=model,
+            images_generated=len(result.data or []),
+            raw_usage=(
+                result.usage.model_dump()
+                if hasattr(result, "usage") and hasattr(result.usage, "model_dump")
+                else None
+            ),
+        )
         image_path = os.path.join(output_directory, f"{uuid.uuid4()}.png")
         with open(image_path, "wb") as f:
             f.write(base64.b64decode(result.data[0].b64_json))
@@ -150,6 +194,17 @@ class ImageGenerationService:
             client.models.generate_content,
             model=model,
             contents=[prompt],
+        )
+        usage_metadata = getattr(response, "usage_metadata", None)
+        self._record_image_usage(
+            provider="google",
+            model=model,
+            images_generated=1,
+            raw_usage=(
+                usage_metadata.model_dump()
+                if usage_metadata and hasattr(usage_metadata, "model_dump")
+                else None
+            ),
         )
 
         image_path = None
@@ -190,6 +245,11 @@ class ImageGenerationService:
             )
             data = await response.json()
             image_url = data["photos"][0]["src"]["large"]
+            self._record_image_usage(
+                provider="pexels",
+                model="pexels",
+                images_generated=1,
+            )
             return image_url
 
     async def get_image_from_pixabay(self, prompt: str) -> str:
@@ -199,6 +259,11 @@ class ImageGenerationService:
             )
             data = await response.json()
             image_url = data["hits"][0]["largeImageURL"]
+            self._record_image_usage(
+                provider="pixabay",
+                model="pixabay",
+                images_generated=1,
+            )
             return image_url
 
     async def generate_image_comfyui(self, prompt: str, output_directory: str) -> str:
@@ -408,6 +473,11 @@ class ImageGenerationService:
                             f.write(image_data)
 
                         print(f"Downloaded image from ComfyUI: {image_path}")
+                        self._record_image_usage(
+                            provider="comfyui",
+                            model="comfyui",
+                            images_generated=1,
+                        )
                         return image_path
                     else:
                         raise Exception(f"Failed to download image: {response.status}")

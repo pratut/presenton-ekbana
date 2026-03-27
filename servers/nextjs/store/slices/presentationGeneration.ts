@@ -14,6 +14,30 @@ export interface PresentationData {
   title: string;
   slides: any;
   theme: Theme | null;
+  usage_cost?: {
+    currency: string;
+    total_amount: number;
+    llm_amount: number;
+    image_amount: number;
+    total_input_tokens: number;
+    total_output_tokens: number;
+    total_tokens: number;
+    total_images_generated: number;
+    items: Array<{
+      service: "llm" | "image";
+      provider: string;
+      model: string;
+      input_tokens: number;
+      output_tokens: number;
+      total_tokens: number;
+      images_generated: number;
+      amount: number;
+      metadata?: {
+        phase?: string;
+        slide_index?: number;
+      } | null;
+    }>;
+  } | null;
 }
 
 interface PresentationGenerationState {

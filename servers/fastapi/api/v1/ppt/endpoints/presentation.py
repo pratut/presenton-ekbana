@@ -65,6 +65,13 @@ from utils.process_slides import (
     process_slide_add_placeholder_assets,
     process_slide_and_fetch_assets,
 )
+from utils.usage_cost import (
+    get_usage_summary_or_default,
+    reset_usage_context,
+    set_usage_context,
+    start_usage_collection,
+    stop_usage_collection,
+)
 import uuid
 
 
@@ -278,6 +285,7 @@ async def stream_presentation(
     image_generation_service = ImageGenerationService(get_images_directory())
 
     async def inner():
+        usage_token = start_usage_collection()
         structure = presentation.get_structure()
         layout = presentation.get_layout()
         outline = presentation.get_presentation_outline()
@@ -294,14 +302,21 @@ async def stream_presentation(
             slide_layout = layout.slides[slide_layout_index]
 
             try:
-                slide_content = await get_slide_content_from_type_and_outline(
-                    slide_layout,
-                    outline.slides[i],
-                    presentation.language,
-                    presentation.tone,
-                    presentation.verbosity,
-                    presentation.instructions,
+                usage_context_token = set_usage_context(
+                    phase="slide_content",
+                    slide_index=i,
                 )
+                try:
+                    slide_content = await get_slide_content_from_type_and_outline(
+                        slide_layout,
+                        outline.slides[i],
+                        presentation.language,
+                        presentation.tone,
+                        presentation.verbosity,
+                        presentation.instructions,
+                    )
+                finally:
+                    reset_usage_context(usage_context_token)
             except HTTPException as e:
                 yield SSEErrorResponse(detail=e.detail).to_string()
                 return
@@ -320,8 +335,20 @@ async def stream_presentation(
             process_slide_add_placeholder_assets(slide)
 
             # This will mutate slide - start task immediately so it runs in parallel with next slide LLM generation
+            async def _process_slide_assets_with_context(slide_model: SlideModel):
+                asset_context_token = set_usage_context(
+                    phase="slide_assets",
+                    slide_index=slide_model.index,
+                )
+                try:
+                    return await process_slide_and_fetch_assets(
+                        image_generation_service, slide_model
+                    )
+                finally:
+                    reset_usage_context(asset_context_token)
+
             async_assets_generation_tasks.append(
-                asyncio.create_task(process_slide_and_fetch_assets(image_generation_service, slide))
+                asyncio.create_task(_process_slide_assets_with_context(slide))
             )
 
             yield SSEResponse(
@@ -334,31 +361,38 @@ async def stream_presentation(
             data=json.dumps({"type": "chunk", "chunk": " ] }"}),
         ).to_string()
 
-        generated_assets_lists = await asyncio.gather(*async_assets_generation_tasks)
-        generated_assets = []
-        for assets_list in generated_assets_lists:
-            generated_assets.extend(assets_list)
+        try:
+            generated_assets_lists = await asyncio.gather(*async_assets_generation_tasks)
+            generated_assets = []
+            for assets_list in generated_assets_lists:
+                generated_assets.extend(assets_list)
 
-        # Moved this here to make sure new slides are generated before deleting the old ones
-        await sql_session.execute(
-            delete(SlideModel).where(SlideModel.presentation == id)
-        )
-        await sql_session.commit()
+            usage_summary = get_usage_summary_or_default()
+            presentation.usage_cost = usage_summary.model_dump(mode="json")
 
-        sql_session.add(presentation)
-        sql_session.add_all(slides)
-        sql_session.add_all(generated_assets)
-        await sql_session.commit()
+            # Moved this here to make sure new slides are generated before deleting the old ones
+            await sql_session.execute(
+                delete(SlideModel).where(SlideModel.presentation == id)
+            )
+            await sql_session.commit()
 
-        response = PresentationWithSlides(
-            **presentation.model_dump(),
-            slides=slides,
-        )
+            sql_session.add(presentation)
+            sql_session.add_all(slides)
+            sql_session.add_all(generated_assets)
+            await sql_session.commit()
 
-        yield SSECompleteResponse(
-            key="presentation",
-            value=response.model_dump(mode="json"),
-        ).to_string()
+            response = PresentationWithSlides(
+                **presentation.model_dump(),
+                usage_cost=usage_summary,
+                slides=slides,
+            )
+
+            yield SSECompleteResponse(
+                key="presentation",
+                value=response.model_dump(mode="json"),
+            ).to_string()
+        finally:
+            stop_usage_collection(usage_token)
 
     return StreamingResponse(inner(), media_type="text/event-stream")
 
@@ -501,6 +535,7 @@ async def generate_presentation_handler(
     async_status: Optional[AsyncPresentationGenerationTaskModel],
     sql_session: AsyncSession = Depends(get_async_session),
 ):
+    usage_token = start_usage_collection()
     try:
         using_slides_markdown = False
 
@@ -541,22 +576,26 @@ async def generate_presentation_handler(
                 )
 
             presentation_outlines_text = ""
-            async for chunk in generate_ppt_outline(
-                request.content,
-                n_slides_to_generate,
-                request.language,
-                additional_context,
-                request.tone.value,
-                request.verbosity.value,
-                request.instructions,
-                request.include_title_slide,
-                request.web_search,
-            ):
+            outline_context_token = set_usage_context(phase="outline_generation")
+            try:
+                async for chunk in generate_ppt_outline(
+                    request.content,
+                    n_slides_to_generate,
+                    request.language,
+                    additional_context,
+                    request.tone.value,
+                    request.verbosity.value,
+                    request.instructions,
+                    request.include_title_slide,
+                    request.web_search,
+                ):
 
-                if isinstance(chunk, HTTPException):
-                    raise chunk
+                    if isinstance(chunk, HTTPException):
+                        raise chunk
 
-                presentation_outlines_text += chunk
+                    presentation_outlines_text += chunk
+            finally:
+                reset_usage_context(outline_context_token)
 
             try:
                 presentation_outlines_json = dict(
@@ -601,14 +640,18 @@ async def generate_presentation_handler(
         if layout_model.ordered:
             presentation_structure = layout_model.to_presentation_structure()
         else:
-            presentation_structure: PresentationStructureModel = (
-                await generate_presentation_structure(
-                    presentation_outlines,
-                    layout_model,
-                    request.instructions,
-                    using_slides_markdown,
+            structure_context_token = set_usage_context(phase="structure_generation")
+            try:
+                presentation_structure: PresentationStructureModel = (
+                    await generate_presentation_structure(
+                        presentation_outlines,
+                        layout_model,
+                        request.instructions,
+                        using_slides_markdown,
+                    )
                 )
-            )
+            finally:
+                reset_usage_context(structure_context_token)
 
         presentation_structure.slides = presentation_structure.slides[:total_outlines]
         for index in range(total_outlines):
@@ -695,17 +738,24 @@ async def generate_presentation_handler(
             print(f"Generating slides from {start} to {end}")
 
             # Generate contents for this batch concurrently
-            content_tasks = [
-                get_slide_content_from_type_and_outline(
-                    slide_layouts[i],
-                    presentation_outlines.slides[i],
-                    request.language,
-                    request.tone.value,
-                    request.verbosity.value,
-                    request.instructions,
+            async def _get_slide_content_with_context(idx: int):
+                content_context_token = set_usage_context(
+                    phase="slide_content",
+                    slide_index=idx,
                 )
-                for i in range(start, end)
-            ]
+                try:
+                    return await get_slide_content_from_type_and_outline(
+                        slide_layouts[idx],
+                        presentation_outlines.slides[idx],
+                        request.language,
+                        request.tone.value,
+                        request.verbosity.value,
+                        request.instructions,
+                    )
+                finally:
+                    reset_usage_context(content_context_token)
+
+            content_tasks = [_get_slide_content_with_context(i) for i in range(start, end)]
             batch_contents: List[dict] = await asyncio.gather(*content_tasks)
 
             # Build slides for this batch
@@ -725,8 +775,20 @@ async def generate_presentation_handler(
                 batch_slides.append(slide)
 
             # Start asset fetch tasks immediately so they run in parallel with next batch's LLM calls
+            async def _process_slide_assets_with_context(slide_model: SlideModel):
+                asset_context_token = set_usage_context(
+                    phase="slide_assets",
+                    slide_index=slide_model.index,
+                )
+                try:
+                    return await process_slide_and_fetch_assets(
+                        image_generation_service, slide_model
+                    )
+                finally:
+                    reset_usage_context(asset_context_token)
+
             asset_tasks = [
-                asyncio.create_task(process_slide_and_fetch_assets(image_generation_service, slide))
+                asyncio.create_task(_process_slide_assets_with_context(slide))
                 for slide in batch_slides
             ]
             async_assets_generation_tasks.extend(asset_tasks)
@@ -742,6 +804,9 @@ async def generate_presentation_handler(
         generated_assets = []
         for assets_list in generated_assets_list:
             generated_assets.extend(assets_list)
+
+        usage_summary = get_usage_summary_or_default()
+        presentation.usage_cost = usage_summary.model_dump(mode="json")
 
         # 8. Save PresentationModel and Slides
         sql_session.add(presentation)
@@ -761,6 +826,7 @@ async def generate_presentation_handler(
 
         response = PresentationPathAndEditPath(
             **presentation_and_path.model_dump(),
+            usage_cost=usage_summary,
             edit_path=f"/presentation?id={presentation_id}",
         )
 
@@ -807,6 +873,8 @@ async def generate_presentation_handler(
 
         else:
             raise e
+    finally:
+        stop_usage_collection(usage_token)
 
 
 @PRESENTATION_ROUTER.post("/generate", response_model=PresentationPathAndEditPath)
