@@ -1,15 +1,20 @@
 import { setLLMConfig } from "@/store/slices/userConfig";
 import { store } from "@/store/store";
 import { LLMConfig } from "@/types/llm_config";
+import { getStoredAuthSession } from "./authSession";
+import { setUserScopedLLMConfig } from "./localUserConfig";
 
 export const handleSaveLLMConfig = async (llmConfig: LLMConfig) => {
   if (!hasValidLLMConfig(llmConfig)) {
     throw new Error("Provided configuration is not valid");
   }
-  await fetch("/api/user-config", {
-    method: "POST",
-    body: JSON.stringify(llmConfig),
-  });
+
+  const session = getStoredAuthSession();
+  if (!session?.sessionId) {
+    throw new Error("You need to login before saving configuration.");
+  }
+
+  setUserScopedLLMConfig(session.sessionId, llmConfig);
 
   store.dispatch(setLLMConfig(llmConfig));
 };

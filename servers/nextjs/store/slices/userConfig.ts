@@ -6,12 +6,13 @@ interface UserConfigState {
   llm_config: LLMConfig
 }
 
-const initialState: UserConfigState = {
-  llm_config: {
-    LLM: "openai",
-    IMAGE_PROVIDER: "gpt-image-1.5",
+export const defaultLLMConfig: LLMConfig = {
+  LLM: "openai",
+  IMAGE_PROVIDER: "gpt-image-1.5",
+}
 
-  },
+const initialState: UserConfigState = {
+  llm_config: defaultLLMConfig,
   can_change_keys: false,
 }
 

@@ -2,14 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { setCanChangeKeys, setLLMConfig } from '@/store/slices/userConfig';
+import { defaultLLMConfig } from '@/store/slices/userConfig';
 import { hasValidLLMConfig } from '@/utils/storeHelpers';
 import { usePathname, useRouter } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import { checkIfSelectedOllamaModelIsPulled } from '@/utils/providerUtils';
 import { LLMConfig } from '@/types/llm_config';
+import { useAuth } from '@/components/auth/AuthContext';
+import { getUserScopedLLMConfig } from '@/utils/localUserConfig';
 
 export function ConfigurationInitializer({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
+  const { session, isLoading: authLoading } = useAuth();
 
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
@@ -17,8 +21,14 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
 
   // Fetch user config state
   useEffect(() => {
-    fetchUserConfigState();
-  }, []);
+    if (authLoading) return;
+    if (!session?.sessionId) {
+      router.replace('/login');
+      setLoadingToFalseAfterNavigatingTo('/login');
+      return;
+    }
+    fetchUserConfigState(session.sessionId);
+  }, [authLoading, session?.sessionId]);
 
   const setLoadingToFalseAfterNavigatingTo = (pathname: string) => {
     const interval = setInterval(() => {
@@ -29,15 +39,13 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
     }, 500);
   }
 
-  const fetchUserConfigState = async () => {
+  const fetchUserConfigState = async (sessionId: string) => {
     setIsLoading(true);
-    const response = await fetch('/api/can-change-keys');
-    const canChangeKeys = (await response.json()).canChange;
+    const canChangeKeys = true;
     dispatch(setCanChangeKeys(canChangeKeys));
 
     if (canChangeKeys) {
-      const response = await fetch('/api/user-config');
-      const llmConfig = await response.json();
+      const llmConfig = getUserScopedLLMConfig(sessionId) || { ...defaultLLMConfig };
       if (!llmConfig.LLM) {
         llmConfig.LLM = 'openai';
       }
@@ -49,6 +57,11 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
       if (isValid) {
         // Check if the selected Ollama model is pulled
         if (llmConfig.LLM === 'ollama') {
+          if (!llmConfig.OLLAMA_MODEL) {
+            router.push('/');
+            setLoadingToFalseAfterNavigatingTo('/');
+            return;
+          }
           const isPulled = await checkIfSelectedOllamaModelIsPulled(llmConfig.OLLAMA_MODEL);
           if (!isPulled) {
             router.push('/');
@@ -108,7 +121,7 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
   }
 
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#E9E8F8] via-[#F5F4FF] to-[#E0DFF7] flex items-center justify-center p-4">
         <div className="max-w-md w-full">

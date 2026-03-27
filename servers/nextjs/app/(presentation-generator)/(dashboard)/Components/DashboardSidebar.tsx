@@ -5,6 +5,9 @@ import { LayoutDashboard, Star, Brain, Settings, Palette } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth/AuthContext";
+import { useDispatch } from "react-redux";
+import { defaultLLMConfig, setLLMConfig } from "@/store/slices/userConfig";
 
 
 
@@ -26,6 +29,14 @@ const DashboardSidebar = () => {
     const pathname = usePathname();
     const activeTab = pathname.split("?")[0].split("/").pop();
     const router = useRouter();
+    const dispatch = useDispatch();
+    const { session, logout } = useAuth();
+
+    const handleLogout = async () => {
+        await logout();
+        dispatch(setLLMConfig(defaultLLMConfig));
+        router.replace("/login");
+    };
 
 
 
@@ -117,6 +128,15 @@ const DashboardSidebar = () => {
 
 
 
+            </div>
+            <div className="pt-4 border-t border-slate-200/60 mt-4">
+                <p className="text-[10px] text-slate-500 break-all mb-2">{session?.email}</p>
+                <button
+                    onClick={handleLogout}
+                    className="w-full text-[11px] border border-slate-200 rounded-md py-2 text-slate-700 hover:bg-slate-50"
+                >
+                    Logout
+                </button>
             </div>
 
         </aside>

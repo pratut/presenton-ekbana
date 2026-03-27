@@ -5,6 +5,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import MixpanelInitializer from "./MixpanelInitializer";
 import { Toaster } from "@/components/ui/sonner";
+import { RouteGuard } from "@/components/auth/RouteGuard";
 const inter = localFont({
   src: [
     {
@@ -90,8 +91,9 @@ export default function RootLayout({
       >
         <Providers>
           <MixpanelInitializer>
-
-            {children}
+            <RouteGuard>
+              {children}
+            </RouteGuard>
 
           </MixpanelInitializer>
         </Providers>

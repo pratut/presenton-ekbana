@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from migrations import migrate_database_on_startup
 from services.database import create_db_and_tables
+from utils.auth_backend import ensure_admin_auth_store_exists
 from utils.get_env import get_app_data_directory_env
 from utils.model_availability import (
     check_llm_and_image_provider_api_or_model_availability,
@@ -19,7 +20,8 @@ async def app_lifespan(_: FastAPI):
     MIGRATE_DATABASE_ON_STARTUP=true, creates any missing tables, and checks
     LLM model availability.
     """
-    os.makedirs(get_app_data_directory_env(), exist_ok=True)
+    os.makedirs(get_app_data_directory_env() or "/app_data", exist_ok=True)
+    ensure_admin_auth_store_exists()
     await migrate_database_on_startup()
     await create_db_and_tables()
     await check_llm_and_image_provider_api_or_model_availability()

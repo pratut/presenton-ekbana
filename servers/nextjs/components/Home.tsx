@@ -20,6 +20,7 @@ import ModeSelectStep from "./OnBoarding/ModeSelectStep";
 import PresentonMode from "./OnBoarding/PresentonMode";
 import GenerationWithImage from "./OnBoarding/GenerationWithImage";
 import FinalStep from "./OnBoarding/FinalStep";
+import { useAuth } from "./auth/AuthContext";
 
 // Button state interface
 interface ButtonState {
@@ -82,6 +83,7 @@ const getTaperedSideOffset = (offset: number, top: number) => {
 export default function Home() {
   const router = useRouter();
   const pathname = usePathname();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [step, setStep] = useState<number>(1)
   const [selectedMode, setSelectedMode] = useState<string>("presenton")
   const config = useSelector((state: RootState) => state.userConfig);
@@ -190,12 +192,19 @@ export default function Home() {
   }, [downloadingModel]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      router.replace("/login");
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
     if (!canChangeKeys) {
       router.push("/upload");
     }
   }, [canChangeKeys, router]);
 
-  if (!canChangeKeys) {
+  if (authLoading || !isAuthenticated || !canChangeKeys) {
     return null;
   }
 
