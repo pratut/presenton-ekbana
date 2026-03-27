@@ -39,7 +39,7 @@ const DashboardSidebar = () => {
 
                 <div onClick={() => router.push("/dashboard")} className="flex items-center  pb-6 border-b border-slate-200/60   gap-2    ">
                     <div className="bg-gradient-to-br from-ekbana-sky-blue to-ekbana-blue rounded-full cursor-pointer p-1 flex justify-center items-center mx-auto shadow-lg shadow-ekbana-green/20">
-                        <img src="/logo-with-bg.png" alt="Presenton logo" className="h-[40px] object-contain w-full" />
+                        <img src="/logo-with-bg.png" alt="EKbana-AI presentation logo" className="h-[40px] object-contain w-full" />
                     </div>
                 </div>
                 <nav className="pt-6 font-syne" aria-label="Dashboard sections">

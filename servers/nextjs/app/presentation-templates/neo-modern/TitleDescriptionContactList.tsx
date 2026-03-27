@@ -21,7 +21,7 @@ export const Schema = z.object({
                 __icon_query__: 'envelope',
             },
             label: 'Email',
-            value: 'presenton@gmail.com',
+            value: 'ai@ekbana.com',
         },
         {
             icon: {
@@ -37,7 +37,7 @@ export const Schema = z.object({
                 __icon_query__: 'globe',
             },
             label: 'Website',
-            value: 'www.presenton.com',
+            value: 'www.ekbana.com',
         },
     ]),
 });

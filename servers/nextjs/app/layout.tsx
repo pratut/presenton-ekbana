@@ -30,8 +30,8 @@ const unbounded = Unbounded({
 
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://presenton.ai"),
-  title: "EKbana - AI Presentation Generator",
+  metadataBase: new URL("https://ekbana.com"),
+  title: "EKbana-AI presentation",
   description:
     "AI-powered presentation generator with custom layouts, multi-model support, and professional design. Create stunning presentations in minutes.",
   keywords: [
@@ -49,14 +49,14 @@ export const metadata: Metadata = {
     apple: '/apple-icon.png',
   },
   openGraph: {
-    title: "EKbana - AI Presentation Generator",
+    title: "EKbana-AI presentation",
     description:
       "AI-powered presentation generator with custom layouts, multi-model support, and professional design. Create stunning presentations in minutes.",
-    url: "https://presenton.ai",
+    url: "https://ekbana.com",
     siteName: "EKbana",
     images: [
       {
-        url: "https://presenton.ai/presenton-feature-graphics.png",
+        url: "https://ekbana.com/presenton-feature-graphics.png",
         width: 1200,
         height: 630,
         alt: "EKbana Logo",
@@ -66,14 +66,14 @@ export const metadata: Metadata = {
     locale: "en_US",
   },
   alternates: {
-    canonical: "https://presenton.ai",
+    canonical: "https://ekbana.com",
   },
   twitter: {
     card: "summary_large_image",
-    title: "EKbana - AI Presentation Generator",
+    title: "EKbana-AI presentation",
     description:
       "AI-powered presentation generator with custom layouts, multi-model support, and professional design. Create stunning presentations in minutes.",
-    images: ["https://presenton.ai/presenton-feature-graphics.png"],
+    images: ["https://ekbana.com/presenton-feature-graphics.png"],
   },
 };
 

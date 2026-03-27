@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Presenton – Setup required</title>
+  <title>EKbana-AI presentation – Setup required</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -130,8 +130,8 @@
 <body>
   <div class="shell">
     <div class="logo-wrap">
-      <img src="../assets/images/presenton_logo.png" alt="Presenton" onerror="this.style.display='none'; document.getElementById('logo-fb').style.display='block';" />
-      <span id="logo-fb" class="logo-fallback" style="display:none;">Presenton</span>
+      <img src="../assets/images/presenton_logo.png" alt="EKbana-AI presentation" onerror="this.style.display='none'; document.getElementById('logo-fb').style.display='block';" />
+      <span id="logo-fb" class="logo-fallback" style="display:none;">EKbana-AI presentation</span>
     </div>
     <div class="step-badge" id="step-badge">Setup</div>
 
@@ -141,7 +141,7 @@
       <div id="state-prompt" class="state active">
         <div class="icon-wrap purple">📦</div>
         <p class="heading" id="prompt-heading">Dependencies required</p>
-        <p class="sub" id="prompt-sub">Presenton needs LibreOffice and Chrome to create and export presentations. Install them now so everything works.</p>
+        <p class="sub" id="prompt-sub">EKbana-AI presentation needs LibreOffice and Chrome to create and export presentations. Install them now so everything works.</p>
         <div class="btn-row">
           <button class="btn-primary" id="btn-install">Install</button>
           <button class="btn-ghost" id="btn-skip">Skip for now</button>
@@ -271,8 +271,8 @@
       setStepBadge(stepNum, total, step === 'libreoffice' ? 'LibreOffice' : 'Chromium');
       document.getElementById('prompt-heading').textContent = step === 'libreoffice' ? 'LibreOffice required' : 'Chromium required';
       document.getElementById('prompt-sub').innerHTML = step === 'libreoffice'
-        ? '<strong>Presenton</strong> uses LibreOffice to generate custom templates from PPTX files.'
-        : '<strong>Presenton</strong> uses Chromium for export and slide rendering. Download it now (~150 MB).';
+        ? '<strong>EKbana-AI presentation</strong> uses LibreOffice to generate custom templates from PPTX files.'
+        : '<strong>EKbana-AI presentation</strong> uses Chromium for export and slide rendering. Download it now (~150 MB).';
       document.getElementById('btn-install').onclick = () => startInstall(step);
       document.getElementById('btn-skip').onclick = () => handleSkip();
       showState('prompt');
